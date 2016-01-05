@@ -10,5 +10,5 @@ func stats(b []uint8) (float64, float64) {
 		sum += float64(x)
 		sumSq += float64(x) * float64(x)
 	}
-	return sum / float64(len(b)), math.Sqrt(sumSq - sum*sum/float64(n)/float64(n-1))
+	return sum / float64(len(b)), math.Sqrt((sumSq - sum*sum/float64(n)) / float64(n-1))
 }
