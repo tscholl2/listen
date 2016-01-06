@@ -2,76 +2,40 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 )
 
-const witServerKey = ""
-
-/*
-$ curl -XPOST 'https://api.wit.ai/speech?v=20141022' \
- -i -L \
- -H "Authorization: Bearer $TOKEN" \
- -H "Content-Type: audio/wav" \
- --data-binary "@sample.wav"
-*/
 func stt(b []int8) string {
+	fmt.Println(len(b))
 	arr := make([]byte, len(b))
 	for i, x := range b {
 		arr[i] = byte(x)
 	}
-	/*arr = append([]byte{82, 73, 70, 70, 100, 31, 0, 0, 87, 65, 86, 69, 102, 109,
-	116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 64, 31, 0, 0, 64, 31, 0, 0, 1, 0, 8, 0,
-	100, 97, 116, 97, 64, 31, 0, 0}, arr...)*/
-	req, err := http.NewRequest(
+	// wav file header 44 bytes of something
+	arr = append([]byte{82, 73, 70, 70, 164, 62, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 64, 31, 0, 0, 64, 31, 0, 0, 1, 0, 8, 0, 100, 97, 116, 97, 128, 62, 0, 0},
+		arr...)
+	//ioutil.WriteFile("x.wav", arr, 0666)
+	return "hi"
+	req, _ := http.NewRequest(
 		"POST",
-		"https://api.wit.ai/speech",
+		"https://stream.watsonplatform.net/speech-to-text/api/v1/recognize?"+
+			"keywords=computer"+
+			"&keywords_threshold=0.75"+
+			"&model=en-US_NarrowbandModel",
 		bytes.NewReader(arr),
 	)
-	if err != nil {
-		panic(err)
-	}
+	req.SetBasicAuth("", "")
 	req.Header.Set("Content-Type",
-		"audio/raw;encoding=signed-integer;bits=8;rate=8000;endian=little")
-	req.Header.Set("Authorization", "Bearer "+witServerKey)
-	req.Header.Set("Transfer-encoding", "chunked")
+		"audio/wav;encoding=signed-integer;bits=8;rate=8000;endian=little;channels=1")
 	fmt.Println("sending request")
-	res, err := new(http.Client).Do(req)
-	if err != nil {
-		panic(err)
-	}
+	res, _ := new(http.Client).Do(req)
 	fmt.Println("got response")
-
-	msg := &struct {
-		Text     string `json:"_text"`
-		MsgID    string `json:"msg_id"`
-		Outcomes []struct {
-			Text       string  `json:"_text"`
-			Confidence float64 `json:"confidence"`
-			Entities   struct {
-				Datetime []struct {
-					Value struct {
-						From string `json:"from"`
-						To   string `json:"to"`
-					} `json:"value"`
-				} `json:"datetime"`
-				Metric []struct {
-					Metadata string `json:"metadata"`
-					Value    string `json:"value"`
-				} `json:"metric"`
-			} `json:"entities"`
-			Intent string `json:"intent"`
-		} `json:"outcomes"`
-	}{}
 	a, _ := ioutil.ReadAll(res.Body)
+	fmt.Println("--------mesage--------")
 	fmt.Println(string(a))
-	json.NewDecoder(bytes.NewReader(a)).Decode(msg)
-	fmt.Println(msg.Text)
 	fmt.Println("--------mesage--------")
-	fmt.Println(msg)
-	fmt.Println("--------mesage--------")
-	ioutil.WriteFile("./a.wav", arr, 0666)
+	ioutil.WriteFile("x.wav", arr, 0666)
 	return "hi"
 }

@@ -1,27 +1,45 @@
 package main
 
-import "github.com/cocoonlife/goalsa"
+import (
+	"fmt"
+
+	"github.com/cocoonlife/goalsa"
+)
 
 const sampleSize = 2000 // number of milliseconds to sample
 
 func listen(out chan<- string) {
+	fmt.Println("listening...")
 	samples := make(chan []int8)
 	go record(samples)
-	var current, previous []int8
+	//var current, previous []int8
+	var s []int8
 	for {
-		current = <-samples
-		switch i := wordIndex(current); {
-		case i == -1:
-		case i < len(current)*1/8:
-			out <- stt(append(previous, current...))
-		case i > len(current)*7/8:
-			previous = current
-			current = <-samples
-			out <- stt(append(previous, current...))
-		default:
-			out <- stt(current)
+		fmt.Println("gathering sample")
+		s = <-samples
+		if wordIndex(s) != -1 {
+			out <- stt(s)
 		}
-		previous = current
+		/*
+			current = <-samples
+			switch i := wordIndex(current); {
+			case i == -1:
+				fmt.Println("no word")
+			case i < len(current)*1/4:
+				fmt.Println("early word")
+				out <- stt(append(previous, current...))
+			case i > len(current)*3/4:
+				fmt.Println("late word")
+				previous = current
+				current = <-samples
+				out <- stt(append(previous, current...))
+			default:
+				fmt.Println("mid word")
+				out <- stt(current)
+			}
+			previous = current
+		*/
+		fmt.Println("finished this sample")
 	}
 }
 
