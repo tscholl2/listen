@@ -12,33 +12,23 @@ func listen(out chan<- string) {
 	fmt.Println("listening...")
 	samples := make(chan []int8)
 	go record(samples)
-	//var current, previous []int8
-	var s []int8
+	var current, previous []int8
 	for {
 		fmt.Println("gathering sample")
-		s = <-samples
-		if wordIndex(s) != -1 {
-			out <- stt(s)
-		}
-		/*
-			current = <-samples
-			switch i := wordIndex(current); {
-			case i == -1:
-				fmt.Println("no word")
-			case i < len(current)*1/4:
-				fmt.Println("early word")
-				out <- stt(append(previous, current...))
-			case i > len(current)*3/4:
-				fmt.Println("late word")
-				previous = current
-				current = <-samples
-				out <- stt(append(previous, current...))
-			default:
-				fmt.Println("mid word")
-				out <- stt(current)
-			}
+		current = <-samples
+		switch i := wordIndex(current); {
+		case i == -1:
+			fmt.Println("no word")
+		case i > len(current)/2:
+			fmt.Println("late word")
 			previous = current
-		*/
+			current = <-samples
+			out <- stt(append(previous[sampleSize/2:], current[:sampleSize/2]...))
+		default:
+			fmt.Println("mid word")
+			out <- stt(current)
+		}
+		previous = current
 		fmt.Println("finished this sample")
 	}
 }
