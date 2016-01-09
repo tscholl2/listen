@@ -10,9 +10,9 @@ const sampleSize = 2000 // number of milliseconds to sample
 
 func listen(out chan<- string) {
 	fmt.Println("listening...")
-	samples := make(chan []int8)
+	samples := make(chan []int16)
 	go record(samples)
-	var current, previous []int8
+	var current, previous []int16
 	for {
 		fmt.Println("gathering sample")
 		current = <-samples
@@ -23,29 +23,29 @@ func listen(out chan<- string) {
 			fmt.Println("late word")
 			previous = current
 			current = <-samples
-			out <- stt(append(previous[sampleSize/2:], current[:sampleSize/2]...))
+			out <- containsPhrase(append(previous[sampleSize/2:], current[:sampleSize/2]...))
 		default:
 			fmt.Println("mid word")
-			out <- stt(current)
+			out <- containsPhrase(current)
 		}
 		previous = current
 		fmt.Println("finished this sample")
 	}
 }
 
-func record(c chan<- []int8) {
-	dev, err := alsa.NewCaptureDevice("default", 1, alsa.FormatU8, 8000, alsa.BufferParams{})
+func record(c chan<- []int16) {
+	dev, err := alsa.NewCaptureDevice("default", 1, alsa.FormatS16LE, 16000, alsa.BufferParams{})
 	if err != nil {
 		panic(err)
 	}
 	for {
-		b := make([]int8, 8*sampleSize)
+		b := make([]int16, 16*sampleSize)
 		dev.Read(b)
 		c <- b
 	}
 }
 
-func wordIndex(b []int8) int {
+func wordIndex(b []int16) int {
 	mean, std := stats(b)
 	var min, peaks int
 	for i, x := range b {
@@ -56,7 +56,7 @@ func wordIndex(b []int8) int {
 			}
 		}
 	}
-	if std < 1 || peaks < 750 || peaks > 2500 {
+	if std < 1 || peaks < 1500 || peaks > 5000 {
 		return -1
 	}
 	return min
