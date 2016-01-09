@@ -2,11 +2,21 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/cocoonlife/goalsa"
 )
 
-const sampleSize = 2000 // number of milliseconds to sample
+// for testing and reference
+func writeAudio(b []int16) {
+	a := []byte{82, 73, 70, 70, 36, 125, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 128, 62, 0, 0, 0, 125, 0, 0, 2, 0, 16, 0, 100, 97, 116, 97, 0, 125, 0, 0}
+	for _, x := range b {
+		a = append(a, uint8(x&0xff), uint8(x>>8))
+	}
+	ioutil.WriteFile("x.wav", a, 0666)
+}
+
+const sampleSize = 3000 // number of milliseconds to sample
 
 func listen(out chan<- string) {
 	fmt.Println("listening...")
@@ -56,7 +66,8 @@ func wordIndex(b []int16) int {
 			}
 		}
 	}
-	if std < 1 || peaks < 1500 || peaks > 5000 {
+	fmt.Printf("std=%02f, mean=%02f, peaks=%d\n", std, mean, peaks)
+	if std < 100 {
 		return -1
 	}
 	return min

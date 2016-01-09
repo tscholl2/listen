@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 )
@@ -22,11 +23,11 @@ func containsPhrase(b []int16) string {
 	}
 	w.Write(wav)
 	for _, x := range b {
-		var h, l uint8 = uint8(x >> 8), uint8(x & 0xff)
-		w.Write([]byte{h, l})
+		w.Write([]byte{uint8(x & 0xff), uint8(x >> 8)})
 	}
 	out, err := c.Output()
-	if strings.Contains(string(out), "okay computer") {
+	fmt.Println(string(out))
+	if strings.Contains(string(out), key) {
 		return key
 	}
 	return ""
