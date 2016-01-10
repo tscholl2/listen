@@ -2,44 +2,43 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 
 	"github.com/cocoonlife/goalsa"
 )
 
-// for testing and reference
-func writeAudio(b []int16) {
-	a := []byte{82, 73, 70, 70, 36, 125, 0, 0, 87, 65, 86, 69, 102, 109, 116, 32, 16, 0, 0, 0, 1, 0, 1, 0, 128, 62, 0, 0, 0, 125, 0, 0, 2, 0, 16, 0, 100, 97, 116, 97, 0, 125, 0, 0}
-	for _, x := range b {
-		a = append(a, uint8(x&0xff), uint8(x>>8))
-	}
-	ioutil.WriteFile("x.wav", a, 0666)
-}
-
-const sampleSize = 3000 // number of milliseconds to sample
+const (
+	recordingRate = 1500 // number of milliseconds to record each time
+)
 
 func listen(out chan<- string) {
 	fmt.Println("listening...")
 	samples := make(chan []int16)
 	go record(samples)
-	var current, previous []int16
+	current := <-samples
 	for {
 		fmt.Println("gathering sample")
 		current = <-samples
-		switch i := wordIndex(current); {
-		case i == -1:
+		mean, std := stats(current)
+		fmt.Printf("computed stats: mean=%0.2f, std=%0.2f\n", mean, std)
+		if std < 400 {
 			fmt.Println("no word")
-		case i > len(current)/2:
-			fmt.Println("late word")
-			previous = current
-			current = <-samples
-			out <- stt(append(previous[sampleSize/2:], current[:sampleSize/2]...))
-		default:
-			fmt.Println("mid word")
-			out <- stt(current)
+			continue
 		}
-		previous = current
-		fmt.Println("finished this sample")
+		if start := wordStartIndex(current, mean, std); start != -1 {
+			fmt.Printf("word starts at %d\n", start)
+			if end := wordEndIndex(current[start:], mean, std); end != -1 {
+				fmt.Printf("word starts at %d\n", start)
+				out <- stt(current[start:end])
+			} else {
+				fmt.Println("need another samples")
+				previous := current
+				current = <-samples
+				if end = wordEndIndex(current, mean, std); end != -1 {
+					fmt.Printf("word ends at %d\n", end)
+					out <- stt(append(previous[start:], current[:end]...))
+				}
+			}
+		}
 	}
 }
 
@@ -49,26 +48,34 @@ func record(c chan<- []int16) {
 		panic(err)
 	}
 	for {
-		b := make([]int16, 16*sampleSize)
+		fmt.Println("recording...")
+		b := make([]int16, 16*recordingRate)
 		dev.Read(b)
+		fmt.Println("recorded...")
 		c <- b
 	}
 }
 
-func wordIndex(b []int16) int {
-	mean, std := stats(b)
-	var min, peaks int
+func wordStartIndex(b []int16, mean, std float64) (start int) {
 	for i, x := range b {
-		if float64(uint8(x)) > mean+1.5*std || float64(uint8(x)) < mean-1.5*std {
-			peaks++
-			if min == 0 {
-				min = i
+		if float64(x)-mean > std || float64(x)-mean < -std {
+			if i > 4000 {
+				return i - 4000
+			}
+			return 0
+		}
+	}
+	return -1
+}
+
+func wordEndIndex(a []int16, mean, std float64) int {
+	var normalSamples int
+	for i, x := range a {
+		if float64(x) < mean+std || float64(x) > mean-std {
+			if normalSamples++; normalSamples > 4000 {
+				return i
 			}
 		}
 	}
-	fmt.Printf("std=%02f, mean=%02f, peaks=%d\n", std, mean, peaks)
-	if std < 300 {
-		return -1
-	}
-	return min
+	return -1
 }
