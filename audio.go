@@ -33,10 +33,10 @@ func listen(out chan<- string) {
 			fmt.Println("late word")
 			previous = current
 			current = <-samples
-			out <- containsPhrase(append(previous[sampleSize/2:], current[:sampleSize/2]...))
+			out <- stt(append(previous[sampleSize/2:], current[:sampleSize/2]...))
 		default:
 			fmt.Println("mid word")
-			out <- containsPhrase(current)
+			out <- stt(current)
 		}
 		previous = current
 		fmt.Println("finished this sample")
@@ -67,7 +67,7 @@ func wordIndex(b []int16) int {
 		}
 	}
 	fmt.Printf("std=%02f, mean=%02f, peaks=%d\n", std, mean, peaks)
-	if std < 100 {
+	if std < 300 {
 		return -1
 	}
 	return min
