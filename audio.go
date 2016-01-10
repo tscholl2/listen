@@ -2,42 +2,32 @@ package main
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/cocoonlife/goalsa"
 )
 
 const (
 	recordingRate = 1500 // number of milliseconds to record each time
+	stdCutOff     = 400  // standard deviation cutoff for word testing
 )
 
 func listen(out chan<- string) {
 	fmt.Println("listening...")
 	samples := make(chan []int16)
 	go record(samples)
-	current := <-samples
 	for {
 		fmt.Println("gathering sample")
-		current = <-samples
-		mean, std := stats(current)
+		a := <-samples
+		mean, std := stats(a)
 		fmt.Printf("computed stats: mean=%0.2f, std=%0.2f\n", mean, std)
-		if std < 400 {
+		if std < stdCutOff {
 			fmt.Println("no word")
 			continue
 		}
-		if start := wordStartIndex(current, mean, std); start != -1 {
+		if start := wordStartIndex(a, mean, std); start != -1 {
 			fmt.Printf("word starts at %d\n", start)
-			if end := wordEndIndex(current[start:], mean, std); end != -1 {
-				fmt.Printf("word starts at %d\n", start)
-				out <- stt(current[start:end])
-			} else {
-				fmt.Println("need another samples")
-				previous := current
-				current = <-samples
-				if end = wordEndIndex(current, mean, std); end != -1 {
-					fmt.Printf("word ends at %d\n", end)
-					out <- stt(append(previous[start:], current[:end]...))
-				}
-			}
+			out <- stt(append(a[int(math.Max(float64(start)-4000, 0)):], <-samples...))
 		}
 	}
 }
@@ -49,32 +39,20 @@ func record(c chan<- []int16) {
 	}
 	for {
 		fmt.Println("recording...")
-		b := make([]int16, 16*recordingRate)
-		dev.Read(b)
+		a := make([]int16, 16*recordingRate)
+		dev.Read(a)
 		fmt.Println("recorded...")
-		c <- b
+		c <- a
 	}
 }
 
-func wordStartIndex(b []int16, mean, std float64) (start int) {
-	for i, x := range b {
-		if float64(x)-mean > std || float64(x)-mean < -std {
-			if i > 4000 {
-				return i - 4000
-			}
-			return 0
-		}
-	}
-	return -1
-}
-
-func wordEndIndex(a []int16, mean, std float64) int {
-	var normalSamples int
+func wordStartIndex(a []int16, mean, std float64) (start int) {
 	for i, x := range a {
-		if float64(x) < mean+std || float64(x) > mean-std {
-			if normalSamples++; normalSamples > 4000 {
-				return i
+		if float64(x)-mean > 1.5*std || float64(x)-mean < -1.5*std {
+			if i > 8000 {
+				i -= 8000
 			}
+			return i
 		}
 	}
 	return -1
